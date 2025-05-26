@@ -28,8 +28,8 @@
   }
 
   const settings = {
-    CHECK_FREQUENCY: initializeSetting('CHECK_FREQUENCY', 5000),
-    WATCH_THRESHOLD: initializeSetting('WATCH_THRESHOLD', 50),
+    CHECK_FREQUENCY: initializeSetting('CHECK_FREQUENCY', 40000),
+    WATCH_THRESHOLD: initializeSetting('WATCH_THRESHOLD', 60),
     LIKE_IF_NOT_SUBSCRIBED: initializeSetting('LIKE_IF_NOT_SUBSCRIBED', false),
     AUTO_LIKE_LIVE_STREAMS: initializeSetting('AUTO_LIKE_LIVE_STREAMS', false)
   };
