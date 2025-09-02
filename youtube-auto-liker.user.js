@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           YouTube Auto-Liker
 // @namespace      https://github.com/pumPCin/youtube-auto-liker
-// @version        1.3.31
+// @version        1.3.32
 // @description    Automatically likes videos of channels you're subscribed to
 // @description:ru Автоматически нравится видео каналов, на которые вы подписаны
 // @author         pumPCin
@@ -94,9 +94,9 @@
 
   const SELECTORS = {
     PLAYER: '#movie_player',
-    SUBSCRIBE_BUTTON: '#subscribe-button > ytd-subscribe-button-renderer, #subscribe-button-shape button.yt-spec-button-shape-next--tonal',
-    LIKE_BUTTON: '.YtLikeButtonViewModelHost button, #like-button button',
-    DISLIKE_BUTTON: '.YtDislikeButtonViewModelHost button, #dislike-button button',
+    SUBSCRIBE_BUTTON: '.yt-spec-button-shape-next--icon-leading-trailing',
+    LIKE_BUTTON: 'button:has([animated-icon-type="LIKE"])',
+    DISLIKE_BUTTON: 'ytd-menu-renderer.ytd-watch-metadata > div:nth-child(1) > segmented-like-dislike-button-view-model:nth-child(1) > yt-smartimation:nth-child(1) > div:nth-child(1) > div:nth-child(1) > dislike-button-view-model:nth-child(2) > toggle-button-view-model:nth-child(1) > button-view-model:nth-child(1) > button:nth-child(1)'
   }
 
   const autoLikedVideoIds = []
@@ -134,7 +134,8 @@
     if (!subscribeButton) {
       throw Error('Couldn\'t find sub button')
     }
-    const subscribed = subscribeButton.hasAttribute('subscribe-button-invisible') || subscribeButton.classList.contains('yt-spec-button-shape-next--tonal')
+    const subscribed = subscribeButton.hasAttribute('subscribe-button-invisible') ||
+      subscribeButton.hasAttribute('subscribed')
     DEBUG.info(subscribed ? 'We are subscribed' : 'We are not subscribed')
     return subscribed
   }
