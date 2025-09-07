@@ -77,7 +77,7 @@
             like()
           }
         }
-      } catch () {}
+      } catch (e) {}
     }
   }
 
