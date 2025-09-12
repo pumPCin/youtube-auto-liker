@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           YouTube Auto-Liker
 // @namespace      https://github.com/pumPCin/youtube-auto-liker
-// @version        1.3.33
+// @version        2.0.0
 // @description    Automatically likes videos of channels you're subscribed to
 // @description:ru Автоматически нравится видео каналов, на которые вы подписаны
 // @author         pumPCin
@@ -9,96 +9,93 @@
 // @icon           https://raw.githubusercontent.com/pumPCin/youtube-auto-liker/master/logo.svg
 // @downloadurl    https://github.com/pumPCin/youtube-auto-liker/raw/master/youtube-auto-liker.user.js
 // @updateurl      https://github.com/pumPCin/youtube-auto-liker/raw/master/youtube-auto-liker.user.js
-// @match          http://*.youtube.com/*
-// @match          https://*.youtube.com/*
+// @match          *://*.youtube.com/*
 // @grant          GM_getValue
 // @grant          GM_setValue
+// @grant          GM_registerMenuCommand
 // @run-at         document-idle
 // @noframes
 // ==/UserScript==
 
-(() => {
-  'use strict'
+(function () {
+  'use strict';
 
-  function initializeSetting(key, defaultValue) {
-    if (GM_getValue(key) === undefined) {
-      GM_setValue(key, defaultValue)
-    }
-    return GM_getValue(key)
-  }
-
-  const settings = {
-    CHECK_FREQUENCY: initializeSetting('CHECK_FREQUENCY', 30000),
-    WATCH_THRESHOLD: initializeSetting('WATCH_THRESHOLD', 60),
-    LIKE_IF_NOT_SUBSCRIBED: initializeSetting('LIKE_IF_NOT_SUBSCRIBED', false),
-    AUTO_LIKE_LIVE_STREAMS: initializeSetting('AUTO_LIKE_LIVE_STREAMS', true)
-  }
+  const WATCH_THRESHOLD = 60;
+  const LIKE_IF_NOT_SUBSCRIBED = false;
+  const AUTO_LIKE_LIVE_STREAMS = true;
 
   const SELECTORS = {
     PLAYER: '#movie_player',
-    SUBSCRIBE_BUTTON: '.yt-spec-button-shape-next--icon-leading-trailing',
-    LIKE_BUTTON: 'button:has([animated-icon-type="LIKE"])',
-    DISLIKE_BUTTON: 'ytd-menu-renderer.ytd-watch-metadata > div:nth-child(1) > segmented-like-dislike-button-view-model:nth-child(1) > yt-smartimation:nth-child(1) > div:nth-child(1) > div:nth-child(1) > dislike-button-view-model:nth-child(2) > toggle-button-view-model:nth-child(1) > button-view-model:nth-child(1) > button:nth-child(1)'
-  }
+    SUBSCRIBE_BUTTON: '#subscribe-button',
+    LIKE_BUTTON: '#menu #top-level-buttons-computed ytd-toggle-button-renderer:nth-child(1) button, #segmented-like-button button',
+    DISLIKE_BUTTON: '#menu #top-level-buttons-computed ytd-toggle-button-renderer:nth-child(2) button, #segmented-dislike-button button'
+  };
 
-  const autoLikedVideoIds = []
+  const autoLikedVideoIds = [];
 
   function getVideoId() {
-    const elem = document.querySelector('#page-manager > ytd-watch-flexy')
-    return elem && elem.hasAttribute('video-id')
-      ? elem.getAttribute('video-id')
-      : new URLSearchParams(window.location.search).get('v')
+    const elem = document.querySelector('#page-manager > ytd-watch-flexy');
+    if (elem && elem.hasAttribute('video-id')) {
+      return elem.getAttribute('video-id');
+    } else {
+      return new URLSearchParams(window.location.search).get('v');
+    }
   }
 
   function watchThresholdReached() {
-    const player = document.querySelector(SELECTORS.PLAYER)
-    if (player) {
-      const watched = player.getCurrentTime() / player.getDuration()
-      const watchedTarget = settings.WATCH_THRESHOLD / 100
-      if (watched < watchedTarget) {
-        return false
-      }
+    const player = document.querySelector(SELECTORS.PLAYER);
+    if (player && player.getDuration && player.getCurrentTime) {
+      const watched = player.getCurrentTime() / player.getDuration();
+      return watched >= WATCH_THRESHOLD / 100;
     }
-    return true
+    return false;
   }
 
   function isSubscribed() {
-    const subscribeButton = document.querySelector(SELECTORS.SUBSCRIBE_BUTTON)
-    if (!subscribeButton) throw Error("Couldn't find sub button")
-    const subscribed = subscribeButton.hasAttribute('subscribe-button-invisible') || subscribeButton.hasAttribute('subscribed')
-    return subscribed
+    const subscribeButton = document.querySelector(SELECTORS.SUBSCRIBE_BUTTON);
+    if (!subscribeButton) return false;
+    return subscribeButton.innerText.includes("Вы подписаны") || subscribeButton.querySelector("paper-button[subscribed]") !== null;
+  }
+
+  function isButtonPressed(button) {
+    return button?.classList.contains('style-default-active') || button?.getAttribute('aria-pressed') === 'true';
+  }
+
+  function like(auto = false) {
+    const likeButton = document.querySelector(SELECTORS.LIKE_BUTTON);
+    const dislikeButton = document.querySelector(SELECTORS.DISLIKE_BUTTON);
+    if (!likeButton || !dislikeButton) return;
+
+    const videoId = getVideoId();
+
+    if (isButtonPressed(likeButton)) {
+      autoLikedVideoIds.push(videoId);
+    } else if (isButtonPressed(dislikeButton)) {
+      return;
+    } else if (autoLikedVideoIds.includes(videoId) && auto) {
+      return;
+    } else {
+      likeButton.click();
+      if (isButtonPressed(likeButton)) {
+        autoLikedVideoIds.push(videoId);
+      }
+    }
   }
 
   function wait() {
     if (watchThresholdReached()) {
       try {
-        if (settings.LIKE_IF_NOT_SUBSCRIBED || isSubscribed()) {
-          if (settings.AUTO_LIKE_LIVE_STREAMS || window.getComputedStyle(document.querySelector('.ytp-live-badge')).display === 'none') {
-            like()
+        if (LIKE_IF_NOT_SUBSCRIBED || isSubscribed()) {
+          if (AUTO_LIKE_LIVE_STREAMS ||
+            window.getComputedStyle(document.querySelector('.ytp-live-badge') || {}).display === 'none') {
+            like(true);
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn("Auto-like error:", e);
+      }
     }
   }
 
-  function isButtonPressed(button) {
-    return button.classList.contains('style-default-active') || button.getAttribute('aria-pressed') === 'true'
-  }
-
-  function like() {
-    const likeButton = document.querySelector(SELECTORS.LIKE_BUTTON)
-    const dislikeButton = document.querySelector(SELECTORS.DISLIKE_BUTTON)
-    if (!likeButton) throw Error("Couldn't find like button")
-    if (!dislikeButton) throw Error("Couldn't find dislike button")
-    const videoId = getVideoId()
-    if (!autoLikedVideoIds.includes(videoId)) {
-    if (isButtonPressed(likeButton) || isButtonPressed(dislikeButton)) {
-      autoLikedVideoIds.push(videoId)
-    } else {
-      likeButton.click()
-    }
-    }
-  }
-
-  setInterval(wait, settings.CHECK_FREQUENCY)
-})()
+  setInterval(wait, 30000);
+})();
